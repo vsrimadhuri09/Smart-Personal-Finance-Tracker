@@ -1,5 +1,6 @@
 package com.financetracker.config;
 
+import com.financetracker.entity.User;
 import com.financetracker.repository.UserRepository;
 import com.financetracker.security.JwtAuthFilter;
 import com.financetracker.security.JwtUtils;
@@ -17,7 +18,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -35,7 +35,9 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final JwtUtils jwtUtils;
 
-    public SecurityConfig(UserRepository userRepository, JwtUtils jwtUtils) {
+    public SecurityConfig(
+            UserRepository userRepository,
+            JwtUtils jwtUtils) {
         this.userRepository = userRepository;
         this.jwtUtils = jwtUtils;
     }
@@ -44,7 +46,8 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService() {
         return username -> userRepository.findByEmail(username)
                 .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + username));
+                        new UsernameNotFoundException(
+                                "User not found: " + username));
     }
 
     @Bean
@@ -58,16 +61,21 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(List.of(
+                "https://smart-personal-finance-tracker-fron-sepia.vercel.app",
                 "https://*.vercel.app",
                 "http://localhost:5173"
         ));
 
         configuration.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+                "GET", "POST", "PUT", "PATCH",
+                "DELETE", "OPTIONS"
         ));
 
         configuration.setAllowedHeaders(List.of(
-                "Authorization", "Content-Type", "Accept", "Origin"
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin"
         ));
 
         configuration.setAllowCredentials(true);
@@ -77,6 +85,7 @@ public class SecurityConfig {
                 new UrlBasedCorsConfigurationSource();
 
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
@@ -84,34 +93,28 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthFilter jwtAuthFilter,
-            AuthenticationProvider authenticationProvider) throws Exception {
+            AuthenticationProvider authenticationProvider)
+            throws Exception {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
-
+                .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**")
+                        .permitAll()
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/api-docs",
+                                "/v3/api-docs/**",
                                 "/api-docs/**",
-                                "/v3/api-docs",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
+                                "/error"
                         )
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated()
                 )
-
-                .authenticationProvider(authenticationProvider)
-
                 .addFilterBefore(
                         jwtAuthFilter,
                         UsernamePasswordAuthenticationFilter.class
